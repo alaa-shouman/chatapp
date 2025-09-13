@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Text, View, TextInput, TouchableOpacity } from 'react-native';
 import { cssInterop } from 'nativewind';
+import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
 
 cssInterop(View, { className: 'style' });
 cssInterop(Text, { className: 'style' });
@@ -10,7 +12,7 @@ const Login = () => {
   // const [email, setEmail] = useState('doctor@example.com');
   const [email, setEmail] = useState('PHARMAdCY_ADMIN@example.com');
   const [password, setPassword] = useState('123456');
-
+const router = useRouter();
   const handleLogin = async () => {
     try {
       setLoading(true);
@@ -24,7 +26,10 @@ const Login = () => {
   return (
     <View className='flex-1 items-center justify-center bg-white'>
       <View className='flex flex-col items-center mb-6 gap-2'>
-        
+        <Image
+          source={require('../../assets/images/splash.png')}
+          style={{ width: 150, height: 150, marginBottom: 8 }}
+        />
         <Text className='text-center text-slate-700 font-bold text-2xl'>Welcome Back !</Text>
         <Text className='text-center text-slate-700'>Hope You are Doing well</Text>
       </View>
@@ -56,7 +61,8 @@ const Login = () => {
           <Text className="text-white font-bold text-lg">{loading ? 'Loading...' : 'Login'}</Text>
         </TouchableOpacity>
       </View>
-      <TouchableOpacity disabled={loading} onPress={() => {}}>
+      <TouchableOpacity disabled={loading} onPress={() => router.push('/(auth)/signup')}>
+        <Text className='text-blue-500 mt-4'>{`Don't have an account? Sign Up`}</Text>
       </TouchableOpacity>
     </View>
   );
