@@ -1,54 +1,20 @@
-import { patientSignUpSchema, PatientSignUp, DoctorSignUp, doctorSignUpSchema } from "../../validation/schemas/auth/signup";
-import { pharmacySignUpSchema, PharmacySignUp } from "../../validation/schemas/auth/signup";
-import { apiClient } from "../../api/base";
-import { ENDPOINTS } from "../../api/endpoints";
+import { apiClient } from "@/api/base";
+import { ENDPOINTS } from "@/api/endpoints";
+import { SignupType } from "@/validation";
 
-
-export async function patientSignupService(data: PatientSignUp) {
-  try{
-    await apiClient({
-      method: "POST",
-      endpoint: ENDPOINTS.Auth.Signup,
-      data: patientSignUpSchema.parse(data),
-    });
-  }catch (error:any) {
-        const errorMessage = error.response?.data?.message || "Failed to Signup";
-
-    throw {
-      userMessage: errorMessage,
-      originalError: error,
-    };
-  }
-}  
-
-export async function doctorSignupService(data: DoctorSignUp) {
-  try{
-    await apiClient({
-      method: "POST",
-      endpoint: ENDPOINTS.Auth.Signup,
-      data: doctorSignUpSchema.parse(data),
-    });
-  }catch (error:any) {
-        const errorMessage = error.response?.data?.message || "Failed to Signup";
-    throw {
-      userMessage: errorMessage,
-      originalError: error,
-    };
-  }
-}
-
-export async function pharmacySignupService(data: PharmacySignUp) {
+export const signupService = async (data: SignupType) => {
   try {
-    await apiClient({
+    const response = await apiClient({
       method: "POST",
       endpoint: ENDPOINTS.Auth.Signup,
       data,
     });
+    return response;
   } catch (error: any) {
-    const errorMessage = error.response?.data?.message || "Failed to Signup";
+    const errorMessage = error.reponse?.data?.message || "Signup failed. Please try again.";
     throw {
-      userMessage: errorMessage,
+      message: errorMessage,
       originalError: error,
     };
   }
-}
+};

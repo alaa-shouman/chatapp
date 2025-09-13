@@ -1,18 +1,27 @@
-import '../global.css';
 import { defaultConfig } from '@tamagui/config/v4';
 import { createTamagui, TamaguiProvider } from '@tamagui/core';
 import { Stack } from 'expo-router';
+import { Provider } from 'react-redux';
+import { PersistGate } from 'redux-persist/integration/react';
+import '../global.css';
+import store, { persistor } from '@/redux/store';
+import { AuthProvider } from '@/context/AuthContext';
 
 export default function RootLayout() {
   const config = createTamagui(defaultConfig)
 
   return (
-    <TamaguiProvider config={config} >
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(tabs)" />
-      </Stack>
-    </TamaguiProvider>
+    <Provider store={store}>
+      <PersistGate loading={null} persistor={persistor}>
+        <AuthProvider>
+        <TamaguiProvider config={config} >
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="(tabs)" />
+          </Stack>
+        </TamaguiProvider>
+        </AuthProvider>
+      </PersistGate>
+    </Provider>
   );
 }

@@ -3,21 +3,40 @@ import { Text, View, TextInput, TouchableOpacity } from 'react-native';
 import { cssInterop } from 'nativewind';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
+import { loginService } from '@/services/Auth/login.services';
+import { useDispatch } from 'react-redux';
+import { login } from '@/redux/slices/auth';
 
 cssInterop(View, { className: 'style' });
 cssInterop(Text, { className: 'style' });
 
 const Login = () => {
   const [loading, setLoading] = useState(false);
-  // const [email, setEmail] = useState('doctor@example.com');
-  const [email, setEmail] = useState('PHARMAdCY_ADMIN@example.com');
+  const dispatch = useDispatch();
+  const [email, setEmail] = useState('alaa@example.com');
   const [password, setPassword] = useState('123456');
+  const [error, setError] = useState('');
 const router = useRouter();
   const handleLogin = async () => {
     try {
       setLoading(true);
-    } catch (error) {
-      console.error("Login failed:", error);
+      const response = await loginService({ email, password });
+      console.log('response :>> ', response);
+      const loginData = {
+        access_token: response.access_token,
+        user: {
+          uuid: response.user.uuid,
+          fname: response.user.fname, 
+          lname: response.user.lname,
+          email: response.user.email || '',
+          avatar: response.user.avatar || '',
+          status: response.user.status || 'online',
+        },
+      };
+
+      dispatch(login(loginData));
+    } catch (error:any) {
+      setError(error.userMessage || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -53,6 +72,9 @@ const router = useRouter();
             secureTextEntry
           />
         </View>
+        {
+          error ? <Text style={{ color: 'red', marginBottom: 8, textAlign: 'center' }}>{error}</Text> : null
+        }
         <TouchableOpacity
           className={`rounded-full h-12 items-center justify-center ${loading ? 'bg-gray-400' : 'bg-blue-500'}`}
           onPress={handleLogin}
@@ -62,7 +84,7 @@ const router = useRouter();
         </TouchableOpacity>
       </View>
       <TouchableOpacity disabled={loading} onPress={() => router.push('/(auth)/signup')}>
-        <Text className='text-blue-500 mt-4'>{`Don't have an account? Sign Up`}</Text>
+        <Text className='text-blue-900 mt-4'>{`Don't have an account? Sign Up`}</Text>
       </TouchableOpacity>
     </View>
   );
