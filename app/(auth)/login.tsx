@@ -84,7 +84,7 @@ const router = useRouter();
         </TouchableOpacity>
       </View>
       <TouchableOpacity disabled={loading} onPress={() => router.push('/(auth)/signup')}>
-        <Text className='text-blue-900 mt-4'>{`Don't have an account? Sign Up`}</Text>
+        <Text className='text-primary mt-4'>{`Don't have an account? Sign Up`}</Text>
       </TouchableOpacity>
     </View>
   );

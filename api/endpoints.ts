@@ -4,5 +4,8 @@ export const ENDPOINTS = {
     Login: "auth/login",
     Signup:'auth/signup',
     logout:'auth/logout',
+  },
+  Users: {
+    FetchUsers: "users",
   }
 };
