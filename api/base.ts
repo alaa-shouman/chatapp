@@ -3,7 +3,7 @@ import { createAxiosInstance } from "./axiosInstance";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
 
-const baseURL = process.env.EXPO_PUBLIC_BASE_URL || "http://localhost:8000/api";
+const baseURL = process.env.EXPO_PUBLIC_BASE_URL ;
 
 interface ApiOptions {
   method: HttpMethod;

@@ -41,7 +41,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (isAuthenticated) {
       // User is authenticated, redirect to tabs if they're in auth routes
       if (inAuthGroup) {
-        router.replace('/(tabs)/profile');
+        router.replace('/(tabs)');
       }
     } else {
       // User is not authenticated, redirect to auth if they're not already there

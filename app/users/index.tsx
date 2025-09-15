@@ -1,5 +1,6 @@
 import { getUsers } from '@/services/users/users.services';
 import type { ProfileUser } from '@/validation/schemas/common/user';
+import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -11,14 +12,16 @@ import {
   View,
 } from 'react-native';
 import {  SafeAreaView } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
 
 const Index = () => {
+  const router = useRouter();
   const [users, setUsers] = useState<ProfileUser[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [loadingMore, setLoadingMore] = useState<boolean>(false);
   const [page, setPage] = useState<number>(1);
   const [lastPage, setLastPage] = useState<number>(1);
-
+  const currentUserUUID = useSelector((state: any) => state.auth.user?.uuid) as string;
   const fetchUsers = useCallback(
     async (pageNumber = 1, append = false) => {
       if (pageNumber === 1) setLoading(true);
@@ -54,6 +57,22 @@ const Index = () => {
     }
   };
 
+  const generateChatId = (userUuid1: string, userUuid2: string): string => {
+    const sortedUuids = [userUuid1, userUuid2].sort();
+    return `${sortedUuids[0]}_${sortedUuids[1]}`;
+  };
+
+  const handleNavigateToChat = (selectedUser: ProfileUser) => {
+
+    if (currentUserUUID && selectedUser.uuid) {
+      const chatId = generateChatId(currentUserUUID, selectedUser.uuid);
+      console.log('Navigating to chat with ID:', chatId);
+      router.push(`/chats/${chatId}`);
+    } else {
+      console.error('Both users must have valid UUIDs to generate a chat ID.');
+    }
+  }
+
   const renderItem = ({ item }: ListRenderItemInfo<ProfileUser>) => {
     const avatar = item.avatar;
     const firstLetter = (item.username || item.fname || item.lname || '')
@@ -62,7 +81,7 @@ const Index = () => {
 
     return (
       <TouchableOpacity
-        onPress={() => console.log('clicked user', item.uuid)}
+        onPress={() => handleNavigateToChat(item)}
         className="px-4 py-3 border-b border-slate-300"
       >
         <View className="flex-row items-center">

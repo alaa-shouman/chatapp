@@ -7,5 +7,12 @@ export const ENDPOINTS = {
   },
   Users: {
     FetchUsers: "users",
+  },
+  Chats:{
+    FetchChats:'chats/get',
+  },
+  Messages:{
+    FetchMessages:'messages/',
+    SendMessage:'messages/send',
   }
 };
