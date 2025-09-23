@@ -67,8 +67,9 @@ const Index = () => {
     if (currentUserUUID && selectedUser.uuid) {
       const chatId = generateChatId(currentUserUUID, selectedUser.uuid);
       console.log('Navigating to chat with ID:', chatId);
-      router.push(`/chats/${chatId}`);
-    } else {
+      const userParam = encodeURIComponent(JSON.stringify(selectedUser));
+      router.push(`/chats/${chatId}?user=${userParam}`);  
+      } else {
       console.error('Both users must have valid UUIDs to generate a chat ID.');
     }
   }

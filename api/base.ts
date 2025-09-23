@@ -1,9 +1,22 @@
 import { AxiosError } from "axios";
 import { createAxiosInstance } from "./axiosInstance";
+import { Platform } from "react-native";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
 
-const baseURL = process.env.EXPO_PUBLIC_BASE_URL ;
+const getBaseUrl = () => {
+  // const envUrl = process.env.EXPO_PUBLIC_BASE_URL;
+  // if (envUrl) return envUrl;
+
+  // For Android emulator, localhost should be 10.0.2.2
+  if (Platform.OS === "android") {
+    return "http://10.0.2.2:8000/api/";
+  }
+
+  return "http://localhost:8000/api/";
+};
+
+const baseURL = getBaseUrl();
 
 interface ApiOptions {
   method: HttpMethod;

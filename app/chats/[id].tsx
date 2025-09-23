@@ -17,9 +17,12 @@ import {
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
 
 const ChatDetail = () => {
-  const { id,username } = useLocalSearchParams();
+  const params = useLocalSearchParams();
+  const { id } = params;
+  const selectedUser = params.user ? JSON.parse(decodeURIComponent(params.user as string)) : null;
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
@@ -32,7 +35,7 @@ const ChatDetail = () => {
   const [userHasScrolled, setUserHasScrolled] = useState(false);
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
   const flatListRef = useRef<FlatList>(null);
-
+  const userId = useSelector((state: any) => state.auth.user?.uuid);
   const formatMessageTime = (timestamp: string) => {
     return format(new Date(timestamp), "h:mm a");
   };
@@ -136,7 +139,7 @@ const ChatDetail = () => {
     try {
       setSending(true);
       const response = await sendMessage({ chatId: id as string, message: inputMessage });
-      const newMsg = (response as any)?.message;
+      const newMsg = (response as any)?.data;
       if (newMsg) setMessages(prev => [...prev, newMsg]);
       setInputMessage('');
     } catch (err) {
@@ -172,16 +175,12 @@ const ChatDetail = () => {
         </View>
       );
     }
-
-    const isMe = item.user?.username === "you";
+    const isMe = item.user?.uuid === userId;
     const ThemeColor = "#0369a1";
 
     return (
       <View
-        className={`mx-4 my-1 max-w-[80%] rounded-2xl p-3 ${isMe
-            ? 'self-end rounded-tr-none'
-            : 'bg-black/10 self-start rounded-tl-none'
-          }`}
+        className={`mx-4 my-1 max-w-[60%] rounded-2xl p-3 ${isMe ? 'self-end rounded-tr-none' : 'bg-black/10 self-start rounded-tl-none'} ${false ? 'opacity-70' : 'opacity-100'}`}
         style={isMe ? { backgroundColor: ThemeColor } : undefined}
       >
         <Text className={isMe ? "text-white" : "text-black"}>
@@ -198,7 +197,7 @@ const ChatDetail = () => {
     );
   };
 
-  if (loading && !refreshing) {
+  if (loading && !refreshing && !loadingMore && messages.length === 0) {
     return (
       <SafeAreaView
         style={{ flex: 1, backgroundColor: "white" }}
@@ -245,13 +244,13 @@ const ChatDetail = () => {
               style={{ backgroundColor: "#0369a1" }}
             >
               <Text className="text-base font-medium text-white">
-                {id?.toString().charAt(0).toUpperCase()}
+                {selectedUser.username?.toString().charAt(0).toUpperCase()}
               </Text>
             </View>
           </View>
           <View className="flex-1 ml-3">
             <Text className="text-lg font-medium" numberOfLines={1}>
-              Chat {id}
+              {selectedUser.username}
             </Text>
           </View>
         </View>
