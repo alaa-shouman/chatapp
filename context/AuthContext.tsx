@@ -36,7 +36,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Check if we're in an auth route
     const inAuthGroup = segments[0] === '(auth)';
 
-    console.log('Auth state changed:', { isAuthenticated, segments, inAuthGroup });
 
     if (isAuthenticated) {
       // User is authenticated, redirect to tabs if they're in auth routes

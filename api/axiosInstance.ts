@@ -25,14 +25,14 @@ export const createAxiosInstance = (baseURL: string) => {
       config.headers["X-Request-Time"] = new Date().toISOString();
 
       // Log full request details
-      console.log("Full Request Details:", {
-        method: config.method?.toUpperCase(),
-        url: `${config.baseURL}${config.url}`,
-        headers: config.headers,
-        params: config.params,
-        data: config.data,
-        token: access_token ? `Bearer ${access_token.substring(0, 10)}...` : "No token",
-      });
+      // console.log("Full Request Details:", {
+      //   method: config.method?.toUpperCase(),
+      //   url: `${config.baseURL}${config.url}`,
+      //   headers: config.headers,
+      //   params: config.params,
+      //   data: config.data,
+      //   token: access_token ? `Bearer ${access_token.substring(0, 10)}...` : "No token",
+      // });
 
       return config;
     },
@@ -46,16 +46,16 @@ export const createAxiosInstance = (baseURL: string) => {
   instance.interceptors.response.use(
     (response) => {
       // Log successful response details
-      console.log("Response Success:", {
-        status: response.status,
-        statusText: response.statusText,
-        url: response.config.url,
-        method: response.config.method?.toUpperCase(),
-        data: response.data,
-        headers: response.headers,
-        requestData: response.config.data,
-        requestParams: response.config.params,
-      });
+      // console.log("Response Success:", {
+      //   status: response.status,
+      //   statusText: response.statusText,
+      //   url: response.config.url,
+      //   method: response.config.method?.toUpperCase(),
+      //   data: response.data,
+      //   headers: response.headers,
+      //   requestData: response.config.data,
+      //   requestParams: response.config.params,
+      // });
 
       return response;
       // Log error response details
@@ -76,7 +76,6 @@ export const createAxiosInstance = (baseURL: string) => {
 
       // Handle 401 Unauthorized - simply logout
       if (error.response?.status === 401) {
-        console.log("Unauthorized access, logging out");
         store.dispatch(logout());
         return Promise.reject(error);
       }

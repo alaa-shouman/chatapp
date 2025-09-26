@@ -21,7 +21,6 @@ const router = useRouter();
     try {
       setLoading(true);
       const response = await loginService({ email, password });
-      console.log('response :>> ', response);
       const loginData = {
         access_token: response.access_token,
         user: {

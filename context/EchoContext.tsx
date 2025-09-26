@@ -1,6 +1,7 @@
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js/react-native';
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
+import { ToastAndroid } from 'react-native';
 import { useSelector } from 'react-redux';
 
 // Assign Pusher to window for Laravel Echo
@@ -18,26 +19,32 @@ interface EchoContextType {
 
 const EchoContext = createContext<EchoContextType | null>(null);
 
+
+
+
 const EchoContextProvider = ({ children }: { children: ReactNode }) => {
     const [echo, setEcho] = useState<Echo<any> | null>(null);
     const [isConnected, setIsConnected] = useState(false);
 
     // Get auth token from Redux store
-    const authToken = useSelector((state: any) => state.auth.token);
+    const authToken = useSelector((state: any) => state.auth.access_token);
 
     const connect = useCallback(() => {
         if (echo) return; // Already connected
 
         const echoInstance = new Echo({
             broadcaster: 'reverb',
-            key: process.env.EXPO_PUBLIC_REVERB_APP_KEY || 'your-reverb-app-key',
+            Pusher: Pusher,
+            key: process.env.EXPO_PUBLIC_REVERB_APP_KEY || 'vfnyxqhx9nn3ifbj0ncp',
             wsHost: process.env.EXPO_PUBLIC_REVERB_HOST || 'localhost',
-            wsPort: parseInt(process.env.EXPO_PUBLIC_REVERB_PORT || '8080'),
-            wssPort: parseInt(process.env.EXPO_PUBLIC_REVERB_PORT || '8080'),
+            wsPort: 6001, 
+            wssPort: 6001,
             disableStats: true,
-            cluster: '',
-            forceTLS: false, // Set to true for production with HTTPS
-            encrypted: false, // Set to true for production with HTTPS
+            cluster: process.env.EXPO_PUBLIC_REVERB_CLUSTER || 'mt1',
+            forceTLS: false, 
+            encrypted: false, 
+            activityTimeout: 30000,
+            pongTimeout: 30000,
             authorizer: (channel: any, options: any) => {
                 return {
                     authorize: (socketId: string, callback: (error: any, data?: any) => void) => {
@@ -48,7 +55,7 @@ const EchoContextProvider = ({ children }: { children: ReactNode }) => {
                         }
 
                         // Make authorization request to your Laravel backend
-                        fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/broadcasting/auth`, {
+                        fetch(`${process.env.EXPO_PUBLIC_BASE_URL}/api/broadcasting/auth`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -77,17 +84,15 @@ const EchoContextProvider = ({ children }: { children: ReactNode }) => {
             const pusherConnector = echoInstance.connector as any;
 
             pusherConnector.pusher.connection.bind('connected', () => {
-                console.log('Echo connected');
                 setIsConnected(true);
             });
 
             pusherConnector.pusher.connection.bind('disconnected', () => {
-                console.log('Echo disconnected');
                 setIsConnected(false);
             });
 
             pusherConnector.pusher.connection.bind('error', (error: any) => {
-                console.error('Echo connection error:', error);
+                // console.error('Echo connection error:', error);
                 setIsConnected(false);
             });
         }
@@ -137,6 +142,9 @@ const EchoContextProvider = ({ children }: { children: ReactNode }) => {
     useEffect(() => {
         if (authToken) {
             connect();
+            console.log('connected :>> ');
+            ToastAndroid.show('Connected to real-time service', ToastAndroid.SHORT);
+            
         }
         return () => {
             disconnect();

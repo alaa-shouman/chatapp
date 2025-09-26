@@ -29,7 +29,6 @@ const Index = () => {
       try {
         const response = await getUsers({ page: pageNumber });
         const meta = response.data; // pagination meta
-        console.log('meta :>> ', meta);
         const items: ProfileUser[] = meta.data ?? [];
 
         if (append) setUsers(prev => [...prev, ...items]);
@@ -66,7 +65,6 @@ const Index = () => {
 
     if (currentUserUUID && selectedUser.uuid) {
       const chatId = generateChatId(currentUserUUID, selectedUser.uuid);
-      console.log('Navigating to chat with ID:', chatId);
       const userParam = encodeURIComponent(JSON.stringify(selectedUser));
       router.push(`/chats/${chatId}?user=${userParam}`);  
       } else {

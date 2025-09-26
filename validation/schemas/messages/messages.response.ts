@@ -17,7 +17,7 @@ export const messageUser = z.object({
 export const singleMessage = z.object({
   id: z.number(),
   message: z.string(),
-  chat_id: z.number(),
+  chat_id: z.string(),
   user_id: z.number(),
   created_at: z.string(),
   updated_at: z.string(),

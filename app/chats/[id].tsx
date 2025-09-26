@@ -1,3 +1,4 @@
+import { useEcho } from '@/context/EchoContext';
 import { getMessages, sendMessage } from '@/services/messages/messages.services';
 import { Message } from '@/validation/schemas/messages/messages.response';
 import { Ionicons } from '@expo/vector-icons';
@@ -5,53 +6,80 @@ import { format, isSameDay, isToday, isYesterday } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { useLocalSearchParams } from 'expo-router/build/hooks';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  RefreshControl,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
-} from 'react-native';
+import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, RefreshControl, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
+
+// Types for better type safety
+interface ProcessedItem extends Message {
+  isPending?: boolean;
+  status?: 'SENT' | 'DELIVERED' | 'READ';
+}
+
+interface DateDivider {
+  isDateDivider: true;
+  date: string;
+  id: string;
+}
 
 const ChatDetail = () => {
   const params = useLocalSearchParams();
   const { id } = params;
   const selectedUser = params.user ? JSON.parse(decodeURIComponent(params.user as string)) : null;
   const router = useRouter();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(false);
+  const userId = useSelector((state: any) => state.auth.user?.uuid);
+
+  // State management
+  const [messages, setMessages] = useState<ProcessedItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [inputMessage, setInputMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState<number | null>(null);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [userHasScrolled, setUserHasScrolled] = useState(false);
-  const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
+  const [hasInitiallyScrolled, setHasInitiallyScrolled] = useState(false);
+
   const flatListRef = useRef<FlatList>(null);
-  const userId = useSelector((state: any) => state.auth.user?.uuid);
+  const ThemeColor = "#0369a1";
+  const echo = useEcho();
+
+  // Message Status Ticks Component
+  const MessageStatusTicks = ({ status, isMe }: { status?: string; isMe: boolean }) => {
+    if (!isMe || !status) return null;
+
+    const getTickColor = () => status === "READ" ? "#4CAF50" : "#9E9E9E";
+
+    const renderTicks = () => {
+      switch (status) {
+        case "SENT":
+          return <Ionicons name="checkmark" size={14} color={getTickColor()} />;
+        case "DELIVERED":
+          return <Ionicons name="checkmark-done" size={14} color={getTickColor()} />;
+        case "READ":
+          return <Ionicons name="checkmark-done" size={14} color={getTickColor()} />;
+        default:
+          return null;
+      }
+    };
+
+    return <View style={{ marginLeft: 4 }}>{renderTicks()}</View>;
+  };
+
+  // Utility Functions
   const formatMessageTime = (timestamp: string) => {
     return format(new Date(timestamp), "h:mm a");
   };
 
   const formatMessageDate = (timestamp: string) => {
     const date = new Date(timestamp);
-    if (isToday(date)) {
-      return "Today";
-    } else if (isYesterday(date)) {
-      return "Yesterday";
-    } else {
-      return format(date, "MMMM d, yyyy");
-    }
+    if (isToday(date)) return "Today";
+    if (isYesterday(date)) return "Yesterday";
+    return format(date, "MMMM d, yyyy");
   };
 
-  const scrollToBottom = useCallback((animated = false) => {
+  const scrollToBottom = useCallback((animated = true) => {
     if (flatListRef.current && messages.length > 0 && !loadingMore) {
       try {
         flatListRef.current.scrollToEnd({ animated });
@@ -59,16 +87,14 @@ const ChatDetail = () => {
         console.log('Scroll error:', error);
       }
     }
-  }, [messages.length, loadingMore]);
-
-  const processMessagesWithDateDividers = () => {
+  }, [messages.length, loadingMore]);  // Message Processing
+  const processMessagesWithDateDividers = useCallback((): (ProcessedItem | DateDivider)[] => {
     if (!messages.length) return [];
 
-    const sortedMessages = [...messages];
-    const items: (Message | { isDateDivider: true; date: string; id: string })[] = [];
+    const items: (ProcessedItem | DateDivider)[] = [];
     let currentDate: Date | null = null;
 
-    sortedMessages.forEach((message) => {
+    messages.forEach((message) => {
       const messageDate = new Date(message.created_at);
 
       if (!currentDate || !isSameDay(currentDate, messageDate)) {
@@ -84,86 +110,193 @@ const ChatDetail = () => {
     });
 
     return items;
-  };
+  }, [messages]);
+
+  // Echo Real-time Messaging
+
+
+  const listenForMessages = useCallback((chatId: string) => {
+    try{
+
+      if (!echo) return () => { };
+      
+      const channel = echo.channel(`chat.${chatId}`);
+      console.log('🔄 Subscribing to channel:', `chat.${chatId}`);
+      
+      channel.subscribed(() => {
+        console.log('✅ Successfully subscribed to channel:', `chat.${chatId}`);
+      });
+      
+      channel.error((error: any) => {
+        console.log('❌ Channel subscription error:', error);
+      });
+      
+      const handler = (e: any) => {
+        console.log('📨 New message received:', e);
+        
+        const newMessage: ProcessedItem = {
+          id: e.id,
+          chat_id: chatId,
+          message: e.message || e.message_content || '',
+          user_id: e.user?.id ?? e.user_id ?? 0,
+          user: e.user ?? {
+            uuid: e.user?.uuid ?? '',
+            status: 'online',
+            created_at: e.created_at ?? new Date().toISOString(),
+            updated_at: e.updated_at ?? new Date().toISOString(),
+            fname: e.user?.fname ?? '',
+            lname: e.user?.lname ?? '',
+            username: e.user?.username || e.user?.name || '',
+            email: e.user?.email ?? '',
+            avatar: e.user?.avatar ?? null,
+            email_verified_at: null,
+          },
+          created_at: e.created_at ?? new Date().toISOString(),
+          updated_at: e.updated_at ?? e.created_at ?? new Date().toISOString(),
+          status: 'DELIVERED',
+        };
+        
+        setMessages(prev => {
+          if (prev.some(m => String(m.id) === String(newMessage.id))) return prev;
+          return [...prev, newMessage];
+        });
+        
+        // Scroll will be handled by onContentSizeChange
+      };
+      
+      channel.listen('MessageSent', handler);
+      return () => {
+        try {
+          channel.stopListening('MessageSent', handler);
+        } catch (err) {
+          console.log('Cleanup error:', err);
+        }
+      };
+    } catch (error) {
+      console.log('Error listening for messages:', error);
+    }
+
+  }, [echo]);
 
   const fetchMessages = useCallback(async (pageParam = 1, append = false) => {
+    if (!id) return;
+
     try {
       if (!append) setLoading(true);
       if (append) setLoadingMore(true);
 
       const response = await getMessages(id as string, { page: pageParam });
       const meta = response.messages;
-      const items = meta?.data ?? [];
+      const items: ProcessedItem[] = (meta?.data ?? []).map((msg: any) => ({
+        ...msg,
+        status: 'DELIVERED'
+      }));
 
       if (append) {
         setMessages(prev => [...items, ...prev]);
       } else {
         setMessages(items);
-        if (!hasScrolledToBottom && items.length > 0) {
-          setTimeout(() => {
-            if (flatListRef.current) {
-              flatListRef.current.scrollToEnd({ animated: false });
-              setHasScrolledToBottom(true);
-            }
-          }, 300);
+        if (!hasInitiallyScrolled && items.length > 0) {
+          setHasInitiallyScrolled(true);
         }
       }
 
       setLastPage(meta.last_page ?? null);
       setPage(meta.current_page ?? pageParam);
     } catch (error) {
-      console.log('error :>> ', error);
+      console.log('Fetch messages error:', error);
     } finally {
       setLoading(false);
       setLoadingMore(false);
       setRefreshing(false);
     }
-  }, [id, hasScrolledToBottom]);
+  }, [id, hasInitiallyScrolled]);
 
-  const handleRefresh = () => {
-    setHasScrolledToBottom(false);
-    setUserHasScrolled(false);
-    setRefreshing(true);
-    fetchMessages(1, false);
-  };
+  const handleSendMessage = useCallback(async () => {
+    if (!inputMessage.trim() || sending) return;
 
-  const handleLoadMore = () => {
-    if (userHasScrolled && page < (lastPage || 1) && !loadingMore) {
-      fetchMessages(page + 1, true);
-    }
-  };
+    const messageContent = inputMessage.trim();
+    const tempId = Date.now();
 
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim()) return;
+    const optimisticMessage: ProcessedItem = {
+      id: tempId,
+      chat_id: id as string,
+      message: messageContent,
+      user_id: parseInt(userId) || 0,
+      user: {
+        uuid: userId || '',
+        status: 'online',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        fname: '',
+        lname: '',
+        username: 'You',
+        email: '',
+        avatar: null,
+        email_verified_at: null,
+      },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      status: 'SENT',
+      isPending: true,
+    };
+
+    setMessages(prev => [...prev, optimisticMessage]);
+    setInputMessage('');
+
+    // Scroll will be handled by onContentSizeChange
 
     try {
       setSending(true);
-      const response = await sendMessage({ chatId: id as string, message: inputMessage });
-      const newMsg = (response as any)?.data;
-      if (newMsg) setMessages(prev => [...prev, newMsg]);
-      setInputMessage('');
-    } catch (err) {
-      console.log('err :>> ', err);
+      const response = await sendMessage({ chatId: id as string, message: messageContent });
+      const serverMessage = (response as any)?.data;
+
+      if (serverMessage) {
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === tempId
+              ? { ...serverMessage, status: 'DELIVERED', isPending: false }
+              : msg
+          )
+        );
+      }
+    } catch (error) {
+      console.log('Send message error:', error);
+      setMessages(prev => prev.filter(msg => msg.id !== tempId));
+      setInputMessage(messageContent);
     } finally {
       setSending(false);
     }
-  };
+  }, [inputMessage, sending, id, userId]);
 
+  const handleRefresh = useCallback(() => {
+    setUserHasScrolled(false);
+    setHasInitiallyScrolled(false);
+    setRefreshing(true);
+    fetchMessages(1, false);
+  }, [fetchMessages]);
+
+  const handleLoadMore = useCallback(() => {
+    if (userHasScrolled && page < (lastPage || 1) && !loadingMore) {
+      fetchMessages(page + 1, true);
+    }
+  }, [userHasScrolled, page, lastPage, loadingMore, fetchMessages]);
+
+  // Effects
   useEffect(() => {
     fetchMessages(1, false);
   }, [fetchMessages]);
 
   useEffect(() => {
-    if (!loading && messages.length > 0 && !loadingMore && hasScrolledToBottom) {
-      setTimeout(() => scrollToBottom(false), 50);
-    }
-  }, [loading, messages.length, loadingMore, hasScrolledToBottom, scrollToBottom]);
+    if (!id || !echo) return;
+    const unsubscribe = listenForMessages(id as string);
+    return unsubscribe;
+  }, [id, echo, listenForMessages]);
 
-  const renderItem = ({
-    item,
-  }: {
-    item: Message | { isDateDivider: true; date: string; id: string };
-  }) => {
+
+
+  // Render Functions
+  const renderItem = ({ item }: { item: ProcessedItem | DateDivider }) => {
     if ("isDateDivider" in item) {
       return (
         <View className="flex-row justify-center my-3">
@@ -175,36 +308,52 @@ const ChatDetail = () => {
         </View>
       );
     }
-    const isMe = item.user?.uuid === userId;
-    const ThemeColor = "#0369a1";
+
+    const isMe = item.user?.uuid === userId || String(item.user_id) === String(userId);
+    const isPending = item.isPending || false;
 
     return (
       <View
-        className={`mx-4 my-1 max-w-[60%] rounded-2xl p-3 ${isMe ? 'self-end rounded-tr-none' : 'bg-black/10 self-start rounded-tl-none'} ${false ? 'opacity-70' : 'opacity-100'}`}
+        className={`mx-4 my-1 max-w-[80%] rounded-2xl p-3 ${isMe ? 'self-end rounded-tr-none' : 'bg-black/10 self-start rounded-tl-none'
+          }`}
         style={isMe ? { backgroundColor: ThemeColor } : undefined}
       >
         <Text className={isMe ? "text-white" : "text-black"}>
           {item.message}
         </Text>
         <View className="flex-row items-center justify-end mt-1">
-          <Text
-            className={`text-xs ${isMe ? "text-white/70" : "text-gray-500"}`}
-          >
+          <Text className={`text-xs ${isMe ? "text-white/70" : "text-gray-500"}`}>
             {formatMessageTime(item.created_at)}
           </Text>
+          {isPending ? (
+            <Ionicons
+              name="time-outline"
+              size={14}
+              color={isMe ? "white" : "#666"}
+              style={{ marginLeft: 4 }}
+            />
+          ) : (
+            <MessageStatusTicks status={item.status} isMe={isMe} />
+          )}
         </View>
       </View>
     );
   };
 
-  if (loading && !refreshing && !loadingMore && messages.length === 0) {
+  const renderLoadingHeader = () => (
+    loadingMore ? (
+      <View className="flex-row justify-center py-3">
+        <ActivityIndicator size="small" color={ThemeColor} />
+        <Text className="ml-2 text-gray-500">Loading older messages...</Text>
+      </View>
+    ) : null
+  );
+
+  if (loading && !refreshing && messages.length === 0) {
     return (
-      <SafeAreaView
-        style={{ flex: 1, backgroundColor: "white" }}
-        edges={["top", "left", "right"]}
-      >
+      <SafeAreaView style={{ flex: 1, backgroundColor: "white" }} edges={["top", "left", "right"]}>
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#0369a1" />
+          <ActivityIndicator size="large" color={ThemeColor} />
           <Text className="mt-2 text-gray-500">Loading messages...</Text>
         </View>
       </SafeAreaView>
@@ -212,13 +361,10 @@ const ChatDetail = () => {
   }
 
   return (
-    <SafeAreaView
-      style={{ flex: 1, backgroundColor: "white" }}
-      edges={["top", "left", "right"]}
-    >
+    <SafeAreaView style={{ flex: 1, backgroundColor: "white" }} edges={["top", "left", "right"]}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : "padding"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 2}
       >
         {/* Header */}
@@ -241,16 +387,16 @@ const ChatDetail = () => {
           <View className="relative">
             <View
               className="h-10 w-10 rounded-full justify-center items-center"
-              style={{ backgroundColor: "#0369a1" }}
+              style={{ backgroundColor: ThemeColor }}
             >
               <Text className="text-base font-medium text-white">
-                {selectedUser.username?.toString().charAt(0).toUpperCase()}
+                {selectedUser?.username?.charAt(0)?.toUpperCase() || "U"}
               </Text>
             </View>
           </View>
           <View className="flex-1 ml-3">
             <Text className="text-lg font-medium" numberOfLines={1}>
-              {selectedUser.username}
+              {selectedUser?.username || "Unknown User"}
             </Text>
           </View>
         </View>
@@ -261,36 +407,36 @@ const ChatDetail = () => {
           data={processMessagesWithDateDividers()}
           renderItem={renderItem}
           keyExtractor={(item) =>
-            "isDateDivider" in item ? item.id : item.id.toString()
+            "isDateDivider" in item ? item.id : String(item.id)
           }
           initialNumToRender={20}
-          maxToRenderPerBatch={10}
+          maxToRenderPerBatch={15}
           windowSize={10}
           removeClippedSubviews={false}
-          maintainVisibleContentPosition={{
-            minIndexForVisible: 0,
-            autoscrollToTopThreshold: 100,
-          }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              colors={["#0369a1"]}
-              tintColor="#0369a1"
+              colors={[ThemeColor]}
+              tintColor={ThemeColor}
             />
           }
           onStartReached={handleLoadMore}
           onStartReachedThreshold={0.5}
+          onContentSizeChange={() => {
+            if (hasInitiallyScrolled && !userHasScrolled) {
+              requestAnimationFrame(() => scrollToBottom(true));
+            }
+          }}
           onMomentumScrollBegin={() => setUserHasScrolled(true)}
+          onMomentumScrollEnd={(e) => {
+            const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+            const isNearBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 10;
+            setUserHasScrolled(!isNearBottom); 
+          }}
           onScrollBeginDrag={() => setUserHasScrolled(true)}
-          ListHeaderComponent={
-            loadingMore ? (
-              <View className="flex-row justify-center py-3">
-                <ActivityIndicator size="small" color="#0369a1" />
-                <Text className="ml-2 text-gray-500">Loading older messages...</Text>
-              </View>
-            ) : null
-          }
+          ListHeaderComponent={renderLoadingHeader}
+          showsVerticalScrollIndicator={false}
         />
 
         {/* Input Container */}
@@ -331,7 +477,7 @@ const ChatDetail = () => {
             style={{
               minWidth: 44,
               minHeight: 44,
-              backgroundColor: inputMessage.trim() ? "#0369a1" : "#E5E5E5",
+              backgroundColor: inputMessage.trim() ? ThemeColor : "#E5E5E5",
             }}
           >
             <Ionicons
