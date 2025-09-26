@@ -43,7 +43,7 @@ const ChatDetail = () => {
 
   const flatListRef = useRef<FlatList>(null);
   const ThemeColor = "#0369a1";
-  const echo = useEcho();
+  const { echo } = useEcho();
 
   // Message Status Ticks Component
   const MessageStatusTicks = ({ status, isMe }: { status?: string; isMe: boolean }) => {
@@ -87,7 +87,7 @@ const ChatDetail = () => {
         console.log('Scroll error:', error);
       }
     }
-  }, [messages.length, loadingMore]);  // Message Processing
+  }, [messages.length, loadingMore]);
   const processMessagesWithDateDividers = useCallback((): (ProcessedItem | DateDivider)[] => {
     if (!messages.length) return [];
 
@@ -116,54 +116,70 @@ const ChatDetail = () => {
 
 
   const listenForMessages = useCallback((chatId: string) => {
-    try{
+    try {
 
       if (!echo) return () => { };
-      
+
       const channel = echo.channel(`chat.${chatId}`);
       console.log('🔄 Subscribing to channel:', `chat.${chatId}`);
-      
+
       channel.subscribed(() => {
         console.log('✅ Successfully subscribed to channel:', `chat.${chatId}`);
       });
-      
+
       channel.error((error: any) => {
         console.log('❌ Channel subscription error:', error);
       });
-      
+
       const handler = (e: any) => {
-        console.log('📨 New message received:', e);
-        
+        console.log('📨 Raw message received from backend:', e);
+
+        // Extract the actual message data from the nested structure
+        const messageData = e.message_content || e;
+        const userData = messageData.user || e.user;
+
         const newMessage: ProcessedItem = {
-          id: e.id,
-          chat_id: chatId,
-          message: e.message || e.message_content || '',
-          user_id: e.user?.id ?? e.user_id ?? 0,
-          user: e.user ?? {
-            uuid: e.user?.uuid ?? '',
-            status: 'online',
-            created_at: e.created_at ?? new Date().toISOString(),
-            updated_at: e.updated_at ?? new Date().toISOString(),
-            fname: e.user?.fname ?? '',
-            lname: e.user?.lname ?? '',
-            username: e.user?.username || e.user?.name || '',
-            email: e.user?.email ?? '',
-            avatar: e.user?.avatar ?? null,
-            email_verified_at: null,
+          id: messageData.id || e.id,
+          chat_id: messageData.chat_id || chatId,
+          message: messageData.message || '',
+          user_id: messageData.user_id || userData?.id || 0,
+          user: {
+            uuid: userData?.uuid || '',
+            status: userData?.status || 'online',
+            created_at: userData?.created_at || new Date().toISOString(),
+            updated_at: userData?.updated_at || new Date().toISOString(),
+            fname: userData?.fname || '',
+            lname: userData?.lname || '',
+            username: userData?.username || userData?.name || 'Unknown User',
+            email: userData?.email || '',
+            avatar: userData?.avatar || null,
+            email_verified_at: userData?.email_verified_at || null,
           },
-          created_at: e.created_at ?? new Date().toISOString(),
-          updated_at: e.updated_at ?? e.created_at ?? new Date().toISOString(),
+          created_at: messageData.created_at || e.created_at || new Date().toISOString(),
+          updated_at: messageData.updated_at || e.updated_at || new Date().toISOString(),
           status: 'DELIVERED',
         };
-        
+
+        console.log('📨 Processed message for UI:', newMessage);
+
         setMessages(prev => {
-          if (prev.some(m => String(m.id) === String(newMessage.id))) return prev;
+          // Prevent duplicate messages
+          const isDuplicate = prev.some(m => String(m.id) === String(newMessage.id));
+          if (isDuplicate) {
+            console.log('🔄 Duplicate message ignored:', newMessage.id);
+            return prev;
+          }
+
+          console.log('✅ Adding new message to state:', newMessage.id);
           return [...prev, newMessage];
         });
-        
-        // Scroll will be handled by onContentSizeChange
+
+        // Auto-scroll to bottom for new messages if user hasn't scrolled up
+        setTimeout(() => {
+          requestAnimationFrame(() => scrollToBottom(true));
+        });
       };
-      
+
       channel.listen('MessageSent', handler);
       return () => {
         try {
@@ -176,7 +192,7 @@ const ChatDetail = () => {
       console.log('Error listening for messages:', error);
     }
 
-  }, [echo]);
+  }, [echo, userHasScrolled, scrollToBottom]);
 
   const fetchMessages = useCallback(async (pageParam = 1, append = false) => {
     if (!id) return;
@@ -432,7 +448,7 @@ const ChatDetail = () => {
           onMomentumScrollEnd={(e) => {
             const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
             const isNearBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 10;
-            setUserHasScrolled(!isNearBottom); 
+            setUserHasScrolled(!isNearBottom);
           }}
           onScrollBeginDrag={() => setUserHasScrolled(true)}
           ListHeaderComponent={renderLoadingHeader}

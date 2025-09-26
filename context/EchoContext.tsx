@@ -35,10 +35,11 @@ const EchoContextProvider = ({ children }: { children: ReactNode }) => {
         const echoInstance = new Echo({
             broadcaster: 'reverb',
             Pusher: Pusher,
+            bearerToken: authToken,
             key: process.env.EXPO_PUBLIC_REVERB_APP_KEY || 'vfnyxqhx9nn3ifbj0ncp',
             wsHost: process.env.EXPO_PUBLIC_REVERB_HOST || 'localhost',
-            wsPort: 6001, 
-            wssPort: 6001,
+            wsPort: 8080, 
+            wssPort: 8080,
             disableStats: true,
             cluster: process.env.EXPO_PUBLIC_REVERB_CLUSTER || 'mt1',
             forceTLS: false, 
@@ -78,12 +79,14 @@ const EchoContextProvider = ({ children }: { children: ReactNode }) => {
                 };
             },
         });
+        console.log('echoInstance :>> ', echoInstance);
 
         // Set up connection event listeners with proper type checking
         if (echoInstance.connector && 'pusher' in echoInstance.connector) {
             const pusherConnector = echoInstance.connector as any;
 
             pusherConnector.pusher.connection.bind('connected', () => {
+                console.log('connected ALALALLALALALAL:>> ');
                 setIsConnected(true);
             });
 
@@ -142,9 +145,6 @@ const EchoContextProvider = ({ children }: { children: ReactNode }) => {
     useEffect(() => {
         if (authToken) {
             connect();
-            console.log('connected :>> ');
-            ToastAndroid.show('Connected to real-time service', ToastAndroid.SHORT);
-            
         }
         return () => {
             disconnect();
